@@ -1,0 +1,93 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-g",
+      "-Wall",
+      "-O2",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=8000000UL",
+      "-c",
+      "-I",
+      "/home/ryan/.local/include",
+      "-o",
+      "main.o",
+      "main.c"
+    ],
+    "directory": "/home/ryan/git/microcontroller_system_design/labs/lab2",
+    "file": "/home/ryan/git/microcontroller_system_design/labs/lab2/main.c",
+    "output": "/home/ryan/git/microcontroller_system_design/labs/lab2/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-g",
+      "-Wall",
+      "-O2",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=8000000UL",
+      "-c",
+      "-I",
+      "/home/ryan/.local/include",
+      "-o",
+      "shift_debounce.o",
+      "shift_debounce.c"
+    ],
+    "directory": "/home/ryan/git/microcontroller_system_design/labs/lab2",
+    "file": "/home/ryan/git/microcontroller_system_design/labs/lab2/shift_debounce.c",
+    "output": "/home/ryan/git/microcontroller_system_design/labs/lab2/shift_debounce.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-g",
+      "-Wall",
+      "-O2",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=8000000UL",
+      "-c",
+      "-I",
+      "/home/ryan/.local/include",
+      "-o",
+      "delay_debounce.o",
+      "delay_debounce.c"
+    ],
+    "directory": "/home/ryan/git/microcontroller_system_design/labs/lab2",
+    "file": "/home/ryan/git/microcontroller_system_design/labs/lab2/delay_debounce.c",
+    "output": "/home/ryan/git/microcontroller_system_design/labs/lab2/delay_debounce.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-g",
+      "-Wall",
+      "-O2",
+      "-mmcu=atmega32u4",
+      "-DF_CPU=8000000UL",
+      "-c",
+      "-I",
+      "/home/ryan/.local/include",
+      "-o",
+      "async_debounce.o",
+      "async_debounce.c"
+    ],
+    "directory": "/home/ryan/git/microcontroller_system_design/labs/lab2",
+    "file": "/home/ryan/git/microcontroller_system_design/labs/lab2/async_debounce.c",
+    "output": "/home/ryan/git/microcontroller_system_design/labs/lab2/async_debounce.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/avr-gcc",
+      "-DF_CPU=8000000UL",
+      "-c",
+      "-I",
+      "/home/ryan/.local/include",
+      "-o",
+      "delay_cycles.o",
+      "delay_cycles.S"
+    ],
+    "directory": "/home/ryan/git/microcontroller_system_design/labs/lab2",
+    "file": "/home/ryan/git/microcontroller_system_design/labs/lab2/delay_cycles.S",
+    "output": "/home/ryan/git/microcontroller_system_design/labs/lab2/delay_cycles.o"
+  }
+]
