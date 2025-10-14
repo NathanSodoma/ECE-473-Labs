@@ -17,15 +17,24 @@ main()
 
   int8_t pd6_cnt = 0;
   uint8_t pd6_state = 0;
+  uint8_t pd4_state = 0;
+  uint8_t pd5_state = 0;
+
   for (;;) {
     int d = delay_debounce(&PIND, 4, 100);
-    if(d == 0){
-      PORTB ^= (1 << PB0);
+    if(d == 0) {
+      pd4_state = 0;
+    }else if(d == 1 && pd4_state == 0) {
+      pd4_state = 1;
+      PORTB = ~PORTB;
     }
 
     int s = shift_debounce(&PIND, 5);
     if (s == 0) {
-      PORTB ^= (1 << PB1);
+      pd5_state = 0;
+    } else if (s == 1 && pd5_state == 0) {
+      pd5_state = 1;
+      PORTB = ~PORTB;
     }
 
     async_debounce(&PIND, 6, &pd6_cnt);
