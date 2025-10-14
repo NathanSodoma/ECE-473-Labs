@@ -18,11 +18,17 @@ main()
   int8_t pd6_cnt = 0;
   uint8_t pd6_state = 0;
   for (;;) {
-    delay_debounce(&PORTD, 4, 100);
+    int d = delay_debounce(&PIND, 4, 100);
+    if(d == 0){
+      PORTB ^= (1 << PB0);
+    }
 
-    shift_debounce(&PORTD, 5);
+    int s = shift_debounce(&PIND, 5);
+    if (s == 0) {
+      PORTB ^= (1 << PB1);
+    }
 
-    async_debounce(&PORTD, 6, &pd6_cnt);
+    async_debounce(&PIND, 6, &pd6_cnt);
     if (pd6_cnt > 32 && pd6_state == 0) {
       pd6_state = 1;
       PORTB = ~PORTB;
