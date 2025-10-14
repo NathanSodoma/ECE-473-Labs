@@ -21,7 +21,7 @@ main()
   uint8_t pd5_state = 1;
 
   for (;;) {
-    int d = delay_debounce(&PIND, 4, 100);
+    int d = delay_debounce(&PIND, 4, 10000);
     if(d == 0) {
       pd4_state = 0;
     }else if(d == 1 && pd4_state == 0) {

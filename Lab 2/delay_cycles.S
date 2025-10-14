@@ -2,11 +2,11 @@
     .globl delay_cycles
     .type  delay_cycles, @function
 /*
- * void delay_cycles(uint16_t cycles);
+ * 
  *
- * Contract: total cycles = N + 8*cycles
- * Here, N (fixed overhead) = 9 cycles inside this function (does not include CALL).
- * Proof:
+ * total cycles = N + 8*cycles
+ * N (fixed overhead) = 9 cycles inside this function (does not include CALL).
+ * 
  *  - Entry zero-check and branch to loop:  sbiw (2) + breq (1 when not taken) + rjmp (2) = 5
  *  - Each loop iteration costs exactly 8 cycles, including the final iteration:
  *        nop (1) + nop (1) + nop (1) + nop (1) + sbiw (2) + brne taken (2) = 8
@@ -23,7 +23,7 @@
  *    total = 9
  * In both cases, total = N + 8*cycles with N = 9.
  */
- 
+
 delay_cycles:
     sbiw    r24, 0         ; 2  ; test if cycles == 0 without changing r24:r25
     breq    .Lret_with_nop ; 2/1; if zero, branch to early return path
