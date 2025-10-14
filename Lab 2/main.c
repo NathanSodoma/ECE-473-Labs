@@ -17,8 +17,8 @@ main()
 
   int8_t pd6_cnt = 0;
   uint8_t pd6_state = 0;
-  uint8_t pd4_state = 0;
-  uint8_t pd5_state = 0;
+  uint8_t pd4_state = 1;
+  uint8_t pd5_state = 1;
 
   for (;;) {
     int d = delay_debounce(&PIND, 4, 100);
