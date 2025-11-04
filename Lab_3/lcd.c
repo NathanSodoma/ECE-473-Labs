@@ -127,7 +127,7 @@ lcd_init(void)
   PORTB &= ~_BV(PB0);   // SS low
   lcd_cmd();
   spi_write(0xA2);                // bias 1/6
-  spi_write(0xC0);                // scan dir (normal)  :contentReference[oaicite:5]{index=5}
+  spi_write(0xC8);                // scan dir (normal)  :contentReference[oaicite:5]{index=5}
   spi_write(0x81); spi_write(15); // contrast command + value (1..63)  :contentReference[oaicite:6]{index=6}
   spi_write(0x22);                // resistor ratio                     :contentReference[oaicite:7]{index=7}
   spi_write(0x2F);                // booster/reg/follower ON            :contentReference[oaicite:8]{index=8}
@@ -254,33 +254,40 @@ void
 lcd_flush_text(lcd_text_buffer_t const buf)
 {
    for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
-     uint8_t page = (LCD_PAGE_COUNT - 1) - row;  // 3,2,1,0
-    lcd_cmd();
-    spi_write(PAGE_ADDR_SET(page));
-    PORTB &= ~_BV(PB0);
+    // Position at column 0 of this page
     lcd_cmd();
     spi_write(PAGE_ADDR_SET(row));
     spi_write(COL_ADDR_SET_UPPER(0));
     spi_write(COL_ADDR_SET_LOWER(0));
-    PORTB |= _BV(PB0);
 
-    PORTB &= ~_BV(PB0);
+    // We will stream exactly 16 cells * 8 cols = 128 bytes
     lcd_data();
 
     char const *s = buf[row];
-    for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
-      char c = ' ';
-      if (s) {
-        char sc = s[ch];
-        if (sc) c = sc;
+
+    // 1) BOUNDED len (<=16) without reading far into memory
+    uint8_t len = 0;
+    if (s) {
+      while (len < (LCD_COLUMN_COUNT / 8) && s[len] != '\0') {
+        ++len;
       }
-      glyph_t const *g = ascii_to_glyph(c);  // in glyph.c 
+    }
+
+    // 2) Emit visible chars (0..len-1), then pad the rest with spaces
+    for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
+      char c = (ch < len) ? s[ch] : ' ';
+
+      // 3) Sanitize to printable ASCII so we never hit the non-blank fallback
+      if (c < ' ' || c > '~') c = ' ';
+
+      glyph_t const *g = ascii_to_glyph(c);   // glyphs for ' '..'~' 
+
+      // 4) Overwrite full 8-column cell (5 columns + 3 zeros)
       for (uint8_t col = 0; col < 8; ++col) {
         if (col < GLYPH_WIDTH) spi_write(g->cols[col]);
         else                    spi_write(0);
       }
     }
-    PORTB |= _BV(PB0);
   }
 }
 
