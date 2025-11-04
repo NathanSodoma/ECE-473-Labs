@@ -73,8 +73,21 @@ spi_init(void)
 static void
 led_init(void)
 {
-  DDRC |= _BV(PC7);    // backlight pin out
-  PORTC &= ~_BV(PC7);  // start off
+  // PC7 (OC4A) as output
+  BL_DDR |= _BV(BL_PIN);
+
+  // --- Timer4 setup (ATmega32U4 High-Speed Timer) ---
+  // Non-inverting PWM on OC4A
+  TCCR4A = _BV(COM4A1) | _BV(PWM4A);
+  // Fast-PWM, prescaler clk/128 (pick what you prefer), PWM4X off
+  TCCR4B = _BV(CS43) | _BV(CS41);    // clk/128  (CS43:CS40 = 10010)
+  TCCR4C = 0;
+  TCCR4D = 0;                        // Fast PWM mode
+  TCCR4E = 0;
+
+  // Start at 0% duty
+  TC4H = 0;                          // high bits for 10-bit access
+  OCR4A = 0;
 }
 
 /* Write to the LCD via spi */
@@ -163,11 +176,10 @@ lcd_off()
 void
 lcd_led_set(uint8_t level)
 {
-  // Simple version (like asm): treat nonzero as ON, zero as OFF.
-  if (level) PORTC |= _BV(PC7);
-  else       PORTC &= ~_BV(PC7);
-  // If you want “real” brightness: set up Timer4 FastPWM on OC4A (PC7) and write OCR4A=level.
-  // The skeleton hints Timer/Counter4; you can upgrade later without touching callsites. :contentReference[oaicite:13]{index=13}
+  // Map 0..255 to 0..1023 (10-bit). Simple upscale: *4.
+  uint16_t duty = (uint16_t)level * 4;  // 0..1020
+  TC4H = (duty >> 8) & 0x03;            // write high bits first
+  OCR4A = duty & 0xFF;
 }
 
 /* Sets LCD volume (contrast) */
@@ -253,41 +265,50 @@ lcd_clear(void)
 void
 lcd_flush_text(lcd_text_buffer_t const buf)
 {
-   for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
-    // Position at column 0 of this page
+   // --- Row 0 (top page) ---
+  // Set cursor to page 0, column 0
+  ss_low();
+  lcd_cmd();
+  spi_write(PAGE_ADDR_SET(0));          // top page (with 0xC8 scan dir)
+  spi_write(COL_ADDR_SET_UPPER(0));
+  spi_write(COL_ADDR_SET_LOWER(0));
+  ss_high();
+
+  // Stream exactly 128 bytes: 16 cells * 8 columns
+  ss_low();
+  lcd_data();
+
+  // Safe, bounded fetch of row-0 string
+  char const *s = buf ? buf[0] : NULL;
+  uint8_t len = 0;
+  if (s) {
+    while (len < (LCD_COLUMN_COUNT / 8) && s[len] != '\0') ++len;  // max 16 chars
+  }
+
+  for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
+    char c = (ch < len) ? s[ch] : ' ';              // pad with spaces
+    if (c < ' ' || c > '~') c = ' ';               // sanitize to printable ASCII
+    glyph_t const *g = ascii_to_glyph(c);
+    // Overwrite full 8-pixel cell (5 glyph cols + 3 zeros)
+    for (uint8_t col = 0; col < 8; ++col) {
+      spi_write(col < GLYPH_WIDTH ? g->cols[col] : 0x00);
+    }
+  }
+  ss_high();
+
+  // --- Clear the other pages so you never see duplicates/ghosting ---
+  for (uint8_t page = 1; page < LCD_PAGE_COUNT; ++page) {
+    ss_low();
     lcd_cmd();
-    spi_write(PAGE_ADDR_SET(row));
+    spi_write(PAGE_ADDR_SET(page));
     spi_write(COL_ADDR_SET_UPPER(0));
     spi_write(COL_ADDR_SET_LOWER(0));
+    ss_high();
 
-    // We will stream exactly 16 cells * 8 cols = 128 bytes
+    ss_low();
     lcd_data();
-
-    char const *s = buf[row];
-
-    // 1) BOUNDED len (<=16) without reading far into memory
-    uint8_t len = 0;
-    if (s) {
-      while (len < (LCD_COLUMN_COUNT / 8) && s[len] != '\0') {
-        ++len;
-      }
-    }
-
-    // 2) Emit visible chars (0..len-1), then pad the rest with spaces
-    for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
-      char c = (ch < len) ? s[ch] : ' ';
-
-      // 3) Sanitize to printable ASCII so we never hit the non-blank fallback
-      if (c < ' ' || c > '~') c = ' ';
-
-      glyph_t const *g = ascii_to_glyph(c);   // glyphs for ' '..'~' 
-
-      // 4) Overwrite full 8-column cell (5 columns + 3 zeros)
-      for (uint8_t col = 0; col < 8; ++col) {
-        if (col < GLYPH_WIDTH) spi_write(g->cols[col]);
-        else                    spi_write(0);
-      }
-    }
+    for (uint8_t i = 0; i < LCD_COLUMN_COUNT; ++i) spi_write(0x00);
+    ss_high();
   }
 }
 
