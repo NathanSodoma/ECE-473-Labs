@@ -106,6 +106,13 @@ lcd_data(void)
   A0_PORT |= _BV(A0);  // A0=1 -> data
 }
 
+static void lcd_reset_pulse(void)
+{
+  RST_PORT &= ~_BV(RST);
+  _delay_ms(1);
+  RST_PORT |= _BV(RST);
+}
+
 /* Initializes the LCD and Backlight,
  * but does not turn it on yet
  *
@@ -220,6 +227,7 @@ lcd_fill(uint8_t c)
       spi_write(c);
     }
     ss_high();
+  }
 }
 
 /* Clears the LCD */
