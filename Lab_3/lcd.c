@@ -254,6 +254,9 @@ void
 lcd_flush_text(lcd_text_buffer_t const buf)
 {
    for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
+     uint8_t page = (LCD_PAGE_COUNT - 1) - row;  // 3,2,1,0
+    lcd_cmd();
+    spi_write(PAGE_ADDR_SET(page));
     PORTB &= ~_BV(PB0);
     lcd_cmd();
     spi_write(PAGE_ADDR_SET(row));
