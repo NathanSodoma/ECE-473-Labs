@@ -56,19 +56,15 @@ static inline void ss_high(void) { SS_PORT |=  _BV(SS); }
 static void
 spi_init(void)
 {
-  MOSI_DDR |= _BV(MOSI);
-  SCK_DDR  |= _BV(SCK);
-  SS_DDR   |= _BV(SS);
-  ss_high(); // inactive (active-low)
+  DDRB |= _BV(PB2) | _BV(PB1) | _BV(PB0);
+  PORTB |= _BV(PB0);               // SS idle high (inactive)
 
-  // A0 and RST as outputs
-  A0_DDR  |= _BV(A0);
-  RST_DDR |= _BV(RST);
+  // A0 (data/command) and RST
+  DDRF |= _BV(PF1) | _BV(PF0);
 
-  // SPI: enable, master, mode 3 (CPOL=1, CPHA=1), fosc/2 (SPI2X=1)
+  // SPI: enable, master, MODE 3, fosc/2
   SPCR = _BV(SPE) | _BV(MSTR) | _BV(CPOL) | _BV(CPHA);
   SPSR = _BV(SPI2X);
-  // mirrors LCDDriver.asm setup. :contentReference[oaicite:9]{index=9}
 }
 
 /* Initialize the LED backlight.
@@ -77,11 +73,8 @@ spi_init(void)
 static void
 led_init(void)
 {
-  BL_DDR |= _BV(BL_PIN); // output
-  // default off
-  BL_PORT &= ~_BV(BL_PIN);
-  // (Optional) You can swap to Timer4 PWM later for smooth brightness.
-  // See lcd_led_set() below.
+  DDRC |= _BV(PC7);    // backlight pin out
+  PORTC &= ~_BV(PC7);  // start off
 }
 
 /* Write to the LCD via spi */
@@ -125,36 +118,41 @@ lcd_init(void)
   spi_init();
   led_init();
 
-  lcd_reset_pulse();
+  // Hardware reset pulse (RST low ~1ms)
+  PORTF &= ~_BV(PF0);
+  _delay_ms(1);
+  PORTF |= _BV(PF0);
 
-  ss_low();
+  // Begin init command sequence
+  PORTB &= ~_BV(PB0);   // SS low
   lcd_cmd();
-  // The same init sequence as LCDDriver.asm:
-  spi_write(0xA2);              // set bias (1/6)
-  spi_write(0xC0);              // set scan direction (normal)
-  spi_write(0x81); spi_write(15); // contrast command then value (1..63)
-  spi_write(0x22);              // regulator resistor ratio
-  spi_write(0x2F);              // booster/regulator/follower on
-  spi_write(0xAF);              // display ON
-  ss_high();
-  // Sequence mirrors asm exactly. :contentReference[oaicite:10]{index=10}
+  spi_write(0xA2);                // bias 1/6
+  spi_write(0xC0);                // scan dir (normal)  :contentReference[oaicite:5]{index=5}
+  spi_write(0x81); spi_write(15); // contrast command + value (1..63)  :contentReference[oaicite:6]{index=6}
+  spi_write(0x22);                // resistor ratio                     :contentReference[oaicite:7]{index=7}
+  spi_write(0x2F);                // booster/reg/follower ON            :contentReference[oaicite:8]{index=8}
+  spi_write(0xAF);                // display ON                         :contentReference[oaicite:9]{index=9}
+  PORTB |= _BV(PB0);    // SS high
 }
 
 /* Turn the display on */
 void
 lcd_on()
 {
-   ss_low(); 
+   PORTB &= ~_BV(PB0); 
    lcd_cmd(); 
    spi_write(0xAF); 
-   ss_high();
+   PORTB |= _BV(PB0);
 }
 
 /* Turn the display off */
 void
 lcd_off()
 {
-  ss_low(); lcd_cmd(); spi_write(0xAE); ss_high(); // OFF
+  PORTB &= ~_BV(PB0); 
+  lcd_cmd(); 
+  spi_write(0xAE); 
+  PORTB |= _BV(PB0);
   // base command with LSB=0. :contentReference[oaicite:12]{index=12}
 }
 
@@ -166,7 +164,8 @@ void
 lcd_led_set(uint8_t level)
 {
   // Simple version (like asm): treat nonzero as ON, zero as OFF.
-  if (level) { BL_PORT |= _BV(BL_PIN); } else { BL_PORT &= ~_BV(BL_PIN); }
+  if (level) PORTC |= _BV(PC7);
+  else       PORTC &= ~_BV(PC7);
   // If you want “real” brightness: set up Timer4 FastPWM on OC4A (PC7) and write OCR4A=level.
   // The skeleton hints Timer/Counter4; you can upgrade later without touching callsites. :contentReference[oaicite:13]{index=13}
 }
@@ -177,15 +176,21 @@ lcd_volume_set(uint8_t level)
 {
   if (level < 1) level = 1;
   if (level > 63) level = 63;
-  ss_low(); lcd_cmd(); spi_write(0x81); spi_write(level); ss_high();
+  PORTB &= ~_BV(PB0);
+  lcd_cmd();
+  spi_write(0x81);
+  spi_write(level);
+  PORTB |= _BV(PB0);
 }
 
 /* Retets LCD; different from blanking/clearing */
 void
 lcd_reset(void)
 {
-  lcd_off();
-  lcd_reset_pulse();
+ lcd_off();
+  PORTF &= ~_BV(PF0);
+  _delay_ms(1);
+  PORTF |= _BV(PF0);
   lcd_on();
 }
 
@@ -205,28 +210,29 @@ lcd_wake(void)
 void
 lcd_scroll(uint8_t y)
 {
-   y &= 0x3F; // 0..63
-  ss_low(); lcd_cmd(); spi_write(0x40 | y); ss_high();
+  y &= 0x3F;
+  PORTB &= ~_BV(PB0);
+  lcd_cmd();
+  spi_write(0x40 | y);
+  PORTB |= _BV(PB0);
 }
 
 /* Fills the LCD with the specified byte value */
 void
 lcd_fill(uint8_t c)
 {
-  for (uint8_t page = 0; page < LCD_PAGE_COUNT; ++page) {
+ for (uint8_t page = 0; page < LCD_PAGE_COUNT; ++page) {
+    PORTB &= ~_BV(PB0);
     lcd_cmd();
-    ss_low();
     spi_write(PAGE_ADDR_SET(page));
     spi_write(COL_ADDR_SET_UPPER(0));
     spi_write(COL_ADDR_SET_LOWER(0));
-    ss_high();
+    PORTB |= _BV(PB0);
 
+    PORTB &= ~_BV(PB0);
     lcd_data();
-    ss_low();
-    for (uint8_t col = 0; col < LCD_COLUMN_COUNT; ++col) {
-      spi_write(c);
-    }
-    ss_high();
+    for (uint8_t x = 0; x < LCD_COLUMN_COUNT; ++x) spi_write(c);
+    PORTB |= _BV(PB0);
   }
 }
 
@@ -247,35 +253,31 @@ lcd_clear(void)
 void
 lcd_flush_text(lcd_text_buffer_t const buf)
 {
-  for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
-    // Position the LCD RAM cursor at the start of this page/row
+   for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
+    PORTB &= ~_BV(PB0);
     lcd_cmd();
     spi_write(PAGE_ADDR_SET(row));
     spi_write(COL_ADDR_SET_UPPER(0));
     spi_write(COL_ADDR_SET_LOWER(0));
+    PORTB |= _BV(PB0);
 
-    // Begin streaming pixel data
+    PORTB &= ~_BV(PB0);
     lcd_data();
 
-    // Fetch the C-string for this row (may be NULL or shorter than 16 chars)
     char const *s = buf[row];
-
-    // Number of character cells per row: 128 / 8 = 16
     for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
-      // Pull the next character (default to space if string is NULL/short)
       char c = ' ';
       if (s) {
         char sc = s[ch];
-        if (sc != '\0') c = sc;
+        if (sc) c = sc;
       }
-
-      // Convert ASCII to a 5-column bitmap and write 8 columns (pad with 0s)
-      glyph_t const *g = ascii_to_glyph(c);
+      glyph_t const *g = ascii_to_glyph(c);  // in glyph.c 
       for (uint8_t col = 0; col < 8; ++col) {
         if (col < GLYPH_WIDTH) spi_write(g->cols[col]);
-        else                    spi_write(0); // spacing
+        else                    spi_write(0);
       }
     }
+    PORTB |= _BV(PB0);
   }
 }
 
