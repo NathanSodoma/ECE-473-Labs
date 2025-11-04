@@ -247,11 +247,35 @@ lcd_clear(void)
 void
 lcd_flush_text(lcd_text_buffer_t const buf)
 {
-  /* ... */
-  glyph_t const *g = ascii_to_glyph(c);
-  for (uint8_t col = 0; col < 8; ++col) {
-    if (col < GLYPH_WIDTH) spi_write(g->cols[col]);
-    else spi_write(0);
+  for (uint8_t row = 0; row < LCD_PAGE_COUNT; ++row) {
+    // Position the LCD RAM cursor at the start of this page/row
+    lcd_cmd();
+    spi_write(PAGE_ADDR_SET(row));
+    spi_write(COL_ADDR_SET_UPPER(0));
+    spi_write(COL_ADDR_SET_LOWER(0));
+
+    // Begin streaming pixel data
+    lcd_data();
+
+    // Fetch the C-string for this row (may be NULL or shorter than 16 chars)
+    char const *s = buf[row];
+
+    // Number of character cells per row: 128 / 8 = 16
+    for (uint8_t ch = 0; ch < (LCD_COLUMN_COUNT / 8); ++ch) {
+      // Pull the next character (default to space if string is NULL/short)
+      char c = ' ';
+      if (s) {
+        char sc = s[ch];
+        if (sc != '\0') c = sc;
+      }
+
+      // Convert ASCII to a 5-column bitmap and write 8 columns (pad with 0s)
+      glyph_t const *g = ascii_to_glyph(c);
+      for (uint8_t col = 0; col < 8; ++col) {
+        if (col < GLYPH_WIDTH) spi_write(g->cols[col]);
+        else                    spi_write(0); // spacing
+      }
+    }
   }
 }
 
