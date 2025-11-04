@@ -13,6 +13,8 @@
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof *(x))
 
+#define TOP_PAGE (LCD_PAGE_COUNT - 1)
+
 #ifndef A0_PORT
 #  define A0_PORT PORTF
 #  define A0_DDR  DDRF
@@ -74,19 +76,33 @@ static void
 led_init(void)
 {
   // PC7 (OC4A) as output
-  BL_DDR |= _BV(BL_PIN);
+  DDRC |= _BV(PC7);
 
-  // --- Timer4 setup (ATmega32U4 High-Speed Timer) ---
-  // Non-inverting PWM on OC4A
+  // --- Enable PLL and feed it to Timer4 ---
+  // Enable PLL
+  PLLCSR = _BV(PLLE);
+  // Wait for lock
+  while (!(PLLCSR & _BV(PLOCK))) { }
+  // Route PLL clock to Timer4
+  PLLCSR |= _BV(PCKE);
+
+  // --- Timer4: non-inverting PWM on OC4A ---
+  // Clear on compare match (COM4A1), enable PWM channel A (PWM4A)
   TCCR4A = _BV(COM4A1) | _BV(PWM4A);
-  // Fast-PWM, prescaler clk/128 (pick what you prefer), PWM4X off
-  TCCR4B = _BV(CS43) | _BV(CS41);    // clk/128  (CS43:CS40 = 10010)
+
+  // Fast PWM mode (WGM bits live in TCCR4D on 32U4). Set WGM to Fast PWM.
+  TCCR4D = 0; // WGM4[1:0] = 00 -> Fast PWM
+
+  // Choose a prescaler; 1/32 is a nice quiet PWM with PLL clock
+  // CS4[3:0] = 0b1001 (datasheet mapping) → experiment if needed.
+  // Safe choice many boards use is /128:
+  TCCR4B = _BV(CS43);  // clk/128 from PLL
+
   TCCR4C = 0;
-  TCCR4D = 0;                        // Fast PWM mode
   TCCR4E = 0;
 
   // Start at 0% duty
-  TC4H = 0;                          // high bits for 10-bit access
+  TC4H = 0;
   OCR4A = 0;
 }
 
@@ -139,8 +155,8 @@ lcd_init(void)
   // Begin init command sequence
   PORTB &= ~_BV(PB0);   // SS low
   lcd_cmd();
-  spi_write(0xA2);                // bias 1/6
-  spi_write(0xC8);                // scan dir (normal)  :contentReference[oaicite:5]{index=5}
+  spi_write(0xA0);                // bias 1/6
+  spi_write(0xC0);                // scan dir (normal)  :contentReference[oaicite:5]{index=5}
   spi_write(0x81); spi_write(15); // contrast command + value (1..63)  :contentReference[oaicite:6]{index=6}
   spi_write(0x22);                // resistor ratio                     :contentReference[oaicite:7]{index=7}
   spi_write(0x2F);                // booster/reg/follower ON            :contentReference[oaicite:8]{index=8}
@@ -176,9 +192,12 @@ lcd_off()
 void
 lcd_led_set(uint8_t level)
 {
-  // Map 0..255 to 0..1023 (10-bit). Simple upscale: *4.
-  uint16_t duty = (uint16_t)level * 4;  // 0..1020
-  TC4H = (duty >> 8) & 0x03;            // write high bits first
+  // Map 0..255 to ~0..1023 (10-bit). Simple upscale by 4.
+  uint16_t duty = (uint16_t)level * 4; // 0..1020
+  if (duty > 1023) duty = 1023;
+
+  // IMPORTANT: write high bits to TC4H before OCR4A
+  TC4H = (duty >> 8) & 0x03;
   OCR4A = duty & 0xFF;
 }
 
@@ -269,7 +288,7 @@ lcd_flush_text(lcd_text_buffer_t const buf)
   // Set cursor to page 0, column 0
   ss_low();
   lcd_cmd();
-  spi_write(PAGE_ADDR_SET(0));          // top page (with 0xC8 scan dir)
+  spi_write(PAGE_ADDR_SET(TOP_PAGE));   // <-- was 0; now the physical top page
   spi_write(COL_ADDR_SET_UPPER(0));
   spi_write(COL_ADDR_SET_LOWER(0));
   ss_high();
