@@ -13,7 +13,7 @@
 #define LCD_TEXT_COLUMNS 16
 #define LCD_PAGE_COUNT 8          // 8 pages vertically
 #define LCD_COLUMN_COUNT 128      // 128 pixels horizontally
-#define GLYPH_WIDTH 8
+
 
 
 static inline void cs_low(void)  { PORTB &= ~_BV(PB0); }  /* SS active low */
