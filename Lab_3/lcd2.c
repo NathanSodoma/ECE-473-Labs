@@ -10,12 +10,11 @@
 #include "lcd.h"
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof *(x))
-
-#define ARRAY_LEN(x) (sizeof(x) / sizeof *(x))
 #define LCD_TEXT_COLUMNS 16
 #define LCD_PAGE_COUNT 8          // 8 pages vertically
 #define LCD_COLUMN_COUNT 128      // 128 pixels horizontally
 #define GLYPH_WIDTH 8
+
 
 static inline void cs_low(void)  { PORTB &= ~_BV(PB0); }  /* SS active low */
 static inline void cs_high(void) { PORTB |=  _BV(PB0); }
@@ -50,12 +49,22 @@ spi_init(void)
 static void
 led_init(void)
 {
-  /* Timer/Counter4, channel A (OC4A on PC7) in Fast PWM (8-bit) */
-  /* Clear OC4A on compare match, prescale clk/8. */
-  TCCR4A = _BV(COM4A1);
+  // PC7 (OC4A) as output
+  DDRC |= _BV(DDC7);
+
+  // Timer4: enable PWM on channel A and connect OC4A to the pin
+  // COM4A1: non-inverting PWM on OC4A
+  // PWM4A:  enable PWM channel A (required on ATmega32U4 Timer4)
+  TCCR4A = _BV(PWM4A) | _BV(COM4A1);
+
+  // Prescaler: clk/8 is a good default (adjust to taste)
   TCCR4B = _BV(CS41);
-  TCCR4D = _BV(WGM40);   /* Fast PWM */
-  OCR4A  = 0;            /* start off */
+
+  // Fast PWM mode (Timer4 uses WGM4x in TCCR4D)
+  TCCR4D = _BV(WGM40);     // 8-bit Fast PWM
+
+  // Start off (0 = off, 0xFF = full on)
+  OCR4A = 0x00;
 }
 
 /* Write to the LCD via spi */
@@ -133,7 +142,7 @@ void
 lcd_led_set(uint8_t level)
 {
   /* 0x00 = off ... 0xFF = max */
-  OCR4A = level;
+  OCR4A = level;   // 0..255
 }
 
 /* Sets LCD volume (contrast) */
