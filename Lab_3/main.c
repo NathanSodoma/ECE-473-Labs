@@ -38,6 +38,30 @@ main()
   lcd_scroll(0);
   lcd_clear();
 
+   /* --- ASCII animal demo (before counting) --- */
+  lcd_clear();
+
+  lcd_text_buffer_t ascii_animal = {
+    "  __      _",
+    "o'')}____//",
+    " `_/      )",
+    " (_(_/-(_/",
+    "", "", "", ""
+  };
+  lcd_flush_text(ascii_animal);
+  _delay_ms(1200);
+
+  /* gentle vertical scroll to show stability */
+  for (uint8_t s = 0; s <= 0x10; ++s) {
+    lcd_scroll(s);
+    _delay_ms(60);
+  }
+  lcd_scroll(0);
+  _delay_ms(200);
+
+  /* clean up before continuing */
+  lcd_clear();
+  
   /* Reduce LCD backlight to 25% */
   lcd_led_set(64);
 
