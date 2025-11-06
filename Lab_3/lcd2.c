@@ -136,7 +136,7 @@ lcd_off()
 
 /* Set the backlight (LED) PWM duty cycle
  *
- * Review schematics... :) 
+ * Review schematics... :)
  */
 void
 lcd_led_set(uint8_t level)
@@ -163,7 +163,7 @@ lcd_volume_set(uint8_t level)
 void
 lcd_reset(void)
 {
- /* Use controller’s soft reset (does not clear GRAM) */
+  /* Use controller’s soft reset (does not clear GRAM) */
   cs_low();
   lcd_cmd();
   spi_write(0xE2); /* lcd_c_disp_reset */
@@ -201,7 +201,7 @@ lcd_scroll(uint8_t y)
 void
 lcd_fill(uint8_t c)
 {
- for (uint8_t page = 0; page < LCD_PAGE_COUNT; ++page) {
+  for (uint8_t page = 0; page < LCD_PAGE_COUNT; ++page) {
     cs_low();
     lcd_cmd();
     spi_write(PAGE_ADDR_SET(page));
