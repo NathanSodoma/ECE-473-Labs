@@ -33,7 +33,7 @@ spi_init(void)
   DDRF |= _BV(DDF1) | _BV(DDF0);  /* A0, RST outputs */
   DDRC |= _BV(DDC7);              /* Backlight (OC4A) output */
 
-  /* Hardware reset pulse (≈1ms) */
+  /* Hardware reset pulse */
   PORTF &= ~_BV(PF0);
   _delay_ms(1);
   PORTF |= _BV(PF0);
@@ -54,16 +54,16 @@ led_init(void)
 
   // Timer4: enable PWM on channel A and connect OC4A to the pin
   // COM4A1: non-inverting PWM on OC4A
-  // PWM4A:  enable PWM channel A (required on ATmega32U4 Timer4)
+  // PWM4A:  enable PWM channel A 
   TCCR4A = _BV(PWM4A) | _BV(COM4A1);
 
-  // Prescaler: clk/8 is a good default (adjust to taste)
+  // Prescaler: clk/8 
   TCCR4B = _BV(CS41);
 
-  // Fast PWM mode (Timer4 uses WGM4x in TCCR4D)
+  // Fast PWM mode 
   TCCR4D = _BV(WGM40);     // 8-bit Fast PWM
 
-  // Start off (0 = off, 0xFF = full on)
+  // Start off 
   OCR4A = 0x00;
 }
 
