@@ -15,13 +15,17 @@
 #define LCD_COLUMN_COUNT 128      // 128 pixels horizontally
 
 
-
+//set SS pin PB0 high for chip select
 static inline void cs_low(void)  { PORTB &= ~_BV(PB0); }  /* SS active low */
 static inline void cs_high(void) { PORTB |=  _BV(PB0); }
 
 /* Initialize SPI interface
  *
  * Read the Atmel spec sheet and LCD driver spec sheet
+ * Set PB2/PB1/PB0 as outputs, de-assert SS (PB0) high
+ * configure PF1 and PF0 as outputs (A0), (RST)
+ * reset pulse
+ * enable SPI mode 3, master fck/2
  */
 static void
 spi_init(void)
@@ -45,6 +49,8 @@ spi_init(void)
 
 /* Initialize the LED backlight.
  *
+ *Configure Timer/Counter4 OC4A for PWM. configure PC7
+ *
  * Look at Timer/Counter4 and the schematic */
 static void
 led_init(void)
@@ -67,7 +73,9 @@ led_init(void)
   OCR4A = 0x00;
 }
 
-/* Write to the LCD via spi */
+/* Write to the LCD via spi 
+* writes one byte over SPI, load SPDR, wait for SPIF to set
+*/
 static void
 spi_write(uint8_t c)
 {
@@ -75,14 +83,18 @@ spi_write(uint8_t c)
   while (!(SPSR & _BV(SPIF))) { /* wait */ }
 }
 
-/* Interpret SPI bytes as commands */
+/* Interpret SPI bytes as commands 
+*A0 =0 so subsequent SPI bytes are commands sent
+*/
 static void
 lcd_cmd(void)
 {
   A0_PORT &= ~_BV(A0);  /* command mode */
 }
 
-/* Interpret SPI bytes as image data */
+/* Interpret SPI bytes as image data 
+* sets A0 = 1 so subsequent SPI bytes are pixel data
+*/
 static void
 lcd_data(void)
 {
@@ -91,7 +103,7 @@ lcd_data(void)
 
 /* Initializes the LCD and Backlight,
  * but does not turn it on yet
- *
+ * 
  * Review the LCD spec sheet for correct
  * initialization routine.
  */
@@ -101,7 +113,7 @@ lcd_init(void)
   spi_init();
   led_init();
 
-  /* Mirror ASM init sequence (bias, scan dir, contrast, res ratio, vreg, ON) */
+  
   cs_low();
   lcd_cmd();
   spi_write(0xA2);                  /* lcd_c_disp_set_bias */
